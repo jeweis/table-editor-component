@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>表格编辑组件测试</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://unpkg.com/element-plus/dist/index.full.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f7fa;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 24px;
+            border-radius: 8px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+        }
+        .demo-header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+        .demo-header h1 {
+            color: #303133;
+            margin-bottom: 8px;
+        }
+        .demo-header p {
+            color: #606266;
+            font-size: 14px;
+        }
+        .simple-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .simple-table th,
+        .simple-table td {
+            border: 1px solid #ebeef5;
+            padding: 12px;
+            text-align: left;
+        }
+        .simple-table th {
+            background-color: #f5f7fa;
+            font-weight: 600;
+        }
+        .simple-table tr:hover {
+            background-color: #f5f7fa;
+        }
+        .editable-cell {
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+        .editable-cell:hover {
+            background-color: #ecf5ff;
+        }
+        .editing {
+            background-color: #e6f7ff;
+        }
+        .toolbar {
+            margin-bottom: 16px;
+            display: flex;
+            gap: 8px;
+        }
+        .btn {
+            padding: 8px 16px;
+            border: 1px solid #dcdfe6;
+            border-radius: 4px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn:hover {
+            background-color: #ecf5ff;
+            border-color: #409eff;
+        }
+        .btn-primary {
+            background-color: #409eff;
+            border-color: #409eff;
+            color: white;
+        }
+        .btn-primary:hover {
+            background-color: #66b1ff;
+        }
+        .btn-danger {
+            background-color: #f56c6c;
+            border-color: #f56c6c;
+            color: white;
+        }
+        .btn-danger:hover {
+            background-color: #f78989;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-active {
+            background-color: #67c23a;
+        }
+        .status-inactive {
+            background-color: #f56c6c;
+        }
+        .features-list {
+            margin-top: 32px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+        }
+        .features-list h3 {
+            margin-top: 0;
+            color: #303133;
+        }
+        .features-list ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .features-list li {
+            margin-bottom: 8px;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="demo-header">
+            <h1>高级表格编辑组件演示</h1>
+            <p>基于 Vue3 + Element Plus 的企业级表格编辑组件</p>
+        </div>
+
+        <div id="app">
+            <div class="toolbar">
+                <button class="btn btn-primary" @click="addRow">添加行</button>
+                <button class="btn btn-danger" @click="deleteSelected" :disabled="selectedRows.length === 0">
+                    删除选中 ({{ selectedRows.length }})
+                </button>
+                <button class="btn" @click="exportData">导出数据</button>
+                <button class="btn" @click="copySelected" :disabled="selectedRows.length === 0">复制选中</button>
+            </div>
+
+            <table class="simple-table">
+                <thead>
+                    <tr>
+                        <th width="50">
+                            <input type="checkbox" @change="selectAll" :checked="allSelected">
+                        </th>
+                        <th>姓名</th>
+                        <th>年龄</th>
+                        <th>部门</th>
+                        <th>职位</th>
+                        <th>薪资</th>
+                        <th>入职日期</th>
+                        <th>状态</th>
+                        <th width="120">操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="(row, index) in tableData" :key="row.id">
+                        <td>
+                            <input type="checkbox" v-model="selectedRows" :value="row.id">
+                        </td>
+                        <td>
+                            <div class="editable-cell" 
+                                 :class="{ editing: row.editing === 'name' }"
+                                 @click="startEdit(row, 'name')">
+                                <input v-if="row.editing === 'name'" 
+                                       v-model="row.name" 
+                                       @blur="endEdit(row, 'name')"
+                                       @keyup.enter="endEdit(row, 'name')"
+                                       style="border: none; outline: none; width: 100%;">
+                                <span v-else>{{ row.name }}</span>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="editable-cell" 
+                                 :class="{ editing: row.editing === 'age' }"
+                                 @click="startEdit(row, 'age')">
+                                <input v-if="row.editing === 'age'" 
+                                       v-model.number="row.age" 
+                                       type="number"
+                                       @blur="endEdit(row, 'age')"
+                                       @keyup.enter="endEdit(row, 'age')"
+                                       style="border: none; outline: none; width: 100%;">
+                                <span v-else>{{ row.age }}</span>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="editable-cell" 
+                                 :class="{ editing: row.editing === 'department' }"
+                                 @click="startEdit(row, 'department')">
+                                <select v-if="row.editing === 'department'" 
+                                        v-model="row.department" 
+                                        @blur="endEdit(row, 'department')"
+                                        @change="endEdit(row, 'department')"
+                                        style="border: none; outline: none; width: 100%;">
+                                    <option value="IT">IT部门</option>
+                                    <option value="Design">设计部门</option>
+                                    <option value="Marketing">市场部门</option>
+                                    <option value="HR">人事部门</option>
+                                    <option value="Finance">财务部门</option>
+                                </select>
+                                <span v-else>{{ getDepartmentLabel(row.department) }}</span>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="editable-cell" 
+                                 :class="{ editing: row.editing === 'position' }"
+                                 @click="startEdit(row, 'position')">
+                                <input v-if="row.editing === 'position'" 
+                                       v-model="row.position" 
+                                       @blur="endEdit(row, 'position')"
+                                       @keyup.enter="endEdit(row, 'position')"
+                                       style="border: none; outline: none; width: 100%;">
+                                <span v-else>{{ row.position }}</span>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="editable-cell" 
+                                 :class="{ editing: row.editing === 'salary' }"
+                                 @click="startEdit(row, 'salary')">
+                                <input v-if="row.editing === 'salary'" 
+                                       v-model.number="row.salary" 
+                                       type="number"
+                                       @blur="endEdit(row, 'salary')"
+                                       @keyup.enter="endEdit(row, 'salary')"
+                                       style="border: none; outline: none; width: 100%;">
+                                <span v-else>¥{{ row.salary?.toLocaleString() }}</span>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="editable-cell" 
+                                 :class="{ editing: row.editing === 'joinDate' }"
+                                 @click="startEdit(row, 'joinDate')">
+                                <input v-if="row.editing === 'joinDate'" 
+                                       v-model="row.joinDate" 
+                                       type="date"
+                                       @blur="endEdit(row, 'joinDate')"
+                                       @change="endEdit(row, 'joinDate')"
+                                       style="border: none; outline: none; width: 100%;">
+                                <span v-else>{{ row.joinDate }}</span>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="status-indicator" :class="row.active ? 'status-active' : 'status-inactive'"></span>
+                            {{ row.active ? '在职' : '离职' }}
+                        </td>
+                        <td>
+                            <button class="btn" @click="toggleStatus(row)" style="font-size: 12px; padding: 4px 8px;">
+                                {{ row.active ? '离职' : '入职' }}
+                            </button>
+                            <button class="btn btn-danger" @click="deleteRow(row)" style="font-size: 12px; padding: 4px 8px; margin-left: 4px;">
+                                删除
+                            </button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="features-list">
+                <h3>功能特性</h3>
+                <ul>
+                    <li><strong>单元格编辑</strong>: 点击单元格进行内联编辑，支持文本、数字、选择器、日期等类型</li>
+                    <li><strong>行级操作</strong>: 支持添加新行、删除行、批量删除等操作</li>
+                    <li><strong>数据验证</strong>: 实时验证输入数据（演示版本简化）</li>
+                    <li><strong>状态管理</strong>: 员工状态切换（在职/离职）</li>
+                    <li><strong>数据导出</strong>: 支持导出表格数据为 CSV 格式</li>
+                    <li><strong>复制功能</strong>: 支持复制选中行的数据到剪贴板</li>
+                </ul>
+                <p><strong>注意</strong>: 这是一个简化的演示版本。完整版本包含更多高级功能，如复杂的数据验证、Excel导入导出、拖拽排序等。</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp, ref, computed, nextTick } = Vue;
+
+        createApp({
+            setup() {
+                const tableData = ref([
+                    {
+                        id: 1,
+                        name: '张三',
+                        age: 28,
+                        department: 'IT',
+                        position: '前端工程师',
+                        salary: 15000,
+                        joinDate: '2023-01-15',
+                        active: true,
+                        editing: null
+                    },
+                    {
+                        id: 2,
+                        name: '李四',
+                        age: 32,
+                        department: 'IT',
+                        position: '后端工程师',
+                        salary: 18000,
+                        joinDate: '2022-08-20',
+                        active: true,
+                        editing: null
+                    },
+                    {
+                        id: 3,
+                        name: '王五',
+                        age: 26,
+                        department: 'Design',
+                        position: 'UI设计师',
+                        salary: 12000,
+                        joinDate: '2023-03-10',
+                        active: false,
+                        editing: null
+                    },
+                    {
+                        id: 4,
+                        name: '赵六',
+                        age: 35,
+                        department: 'Marketing',
+                        position: '市场经理',
+                        salary: 20000,
+                        joinDate: '2021-12-05',
+                        active: true,
+                        editing: null
+                    },
+                    {
+                        id: 5,
+                        name: '钱七',
+                        age: 29,
+                        department: 'HR',
+                        position: '人事专员',
+                        salary: 10000,
+                        joinDate: '2023-05-18',
+                        active: true,
+                        editing: null
+                    }
+                ]);
+
+                const selectedRows = ref([]);
+
+                const allSelected = computed(() => {
+                    return selectedRows.value.length === tableData.value.length && tableData.value.length > 0;
+                });
+
+                const getDepartmentLabel = (dept) => {
+                    const labels = {
+                        'IT': 'IT部门',
+                        'Design': '设计部门',
+                        'Marketing': '市场部门',
+                        'HR': '人事部门',
+                        'Finance': '财务部门'
+                    };
+                    return labels[dept] || dept;
+                };
+
+                const startEdit = (row, field) => {
+                    // End any other editing
+                    tableData.value.forEach(r => r.editing = null);
+                    row.editing = field;
+                    
+                    nextTick(() => {
+                        const input = document.querySelector(`tr:nth-child(${tableData.value.indexOf(row) + 1}) .editing input, tr:nth-child(${tableData.value.indexOf(row) + 1}) .editing select`);
+                        if (input) input.focus();
+                    });
+                };
+
+                const endEdit = (row, field) => {
+                    row.editing = null;
+                };
+
+                const addRow = () => {
+                    const newRow = {
+                        id: Date.now(),
+                        name: '新员工',
+                        age: 25,
+                        department: 'IT',
+                        position: '待分配',
+                        salary: 8000,
+                        joinDate: new Date().toISOString().split('T')[0],
+                        active: true,
+                        editing: null
+                    };
+                    tableData.value.unshift(newRow);
+                };
+
+                const deleteRow = (row) => {
+                    if (confirm('确定要删除这行数据吗？')) {
+                        const index = tableData.value.findIndex(r => r.id === row.id);
+                        if (index > -1) {
+                            tableData.value.splice(index, 1);
+                            selectedRows.value = selectedRows.value.filter(id => id !== row.id);
+                        }
+                    }
+                };
+
+                const deleteSelected = () => {
+                    if (selectedRows.value.length === 0) return;
+                    if (confirm(`确定要删除选中的 ${selectedRows.value.length} 行数据吗？`)) {
+                        tableData.value = tableData.value.filter(row => !selectedRows.value.includes(row.id));
+                        selectedRows.value = [];
+                    }
+                };
+
+                const selectAll = (event) => {
+                    if (event.target.checked) {
+                        selectedRows.value = tableData.value.map(row => row.id);
+                    } else {
+                        selectedRows.value = [];
+                    }
+                };
+
+                const toggleStatus = (row) => {
+                    row.active = !row.active;
+                };
+
+                const exportData = () => {
+                    const headers = ['姓名', '年龄', '部门', '职位', '薪资', '入职日期', '状态'];
+                    const rows = tableData.value.map(row => [
+                        row.name,
+                        row.age,
+                        getDepartmentLabel(row.department),
+                        row.position,
+                        row.salary,
+                        row.joinDate,
+                        row.active ? '在职' : '离职'
+                    ]);
+                    
+                    const csvContent = [headers, ...rows]
+                        .map(row => row.map(cell => `"${cell}"`).join(','))
+                        .join('\n');
+                    
+                    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+                    const link = document.createElement('a');
+                    const url = URL.createObjectURL(blob);
+                    link.setAttribute('href', url);
+                    link.setAttribute('download', 'table-data.csv');
+                    link.style.visibility = 'hidden';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+                    
+                    alert('数据导出成功！');
+                };
+
+                const copySelected = () => {
+                    if (selectedRows.value.length === 0) return;
+                    
+                    const selectedData = tableData.value.filter(row => selectedRows.value.includes(row.id));
+                    const copyText = selectedData.map(row => 
+                        `${row.name}\t${row.age}\t${getDepartmentLabel(row.department)}\t${row.position}\t${row.salary}\t${row.joinDate}\t${row.active ? '在职' : '离职'}`
+                    ).join('\n');
+                    
+                    navigator.clipboard.writeText(copyText).then(() => {
+                        alert(`已复制 ${selectedRows.value.length} 行数据到剪贴板！`);
+                    }).catch(() => {
+                        alert('复制失败，请手动复制数据');
+                    });
+                };
+
+                return {
+                    tableData,
+                    selectedRows,
+                    allSelected,
+                    getDepartmentLabel,
+                    startEdit,
+                    endEdit,
+                    addRow,
+                    deleteRow,
+                    deleteSelected,
+                    selectAll,
+                    toggleStatus,
+                    exportData,
+                    copySelected
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>

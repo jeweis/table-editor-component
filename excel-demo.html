@@ -1,0 +1,1153 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Excel风格表格编辑器</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://unpkg.com/element-plus/dist/index.full.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f8f9fa;
+            color: #1f2328;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 30px 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .excel-container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+            margin-bottom: 30px;
+        }
+
+        .excel-table-wrapper {
+            position: relative;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: 13px;
+            background: #ffffff;
+            border: 1px solid #e1e4e8;
+            user-select: none;
+        }
+
+        .table-container {
+            overflow: auto;
+            max-height: 500px;
+            border-radius: 8px;
+        }
+
+        .excel-table {
+            border-collapse: separate;
+            border-spacing: 0;
+            width: 100%;
+            background: white;
+            font-size: 13px;
+        }
+
+        .excel-table th,
+        .excel-table td {
+            border: 1px solid #e1e4e8;
+            padding: 0;
+            margin: 0;
+            position: relative;
+        }
+
+        .excel-table th {
+            background: #f6f8fa;
+            font-weight: 600;
+            color: #1f2328;
+            height: 32px;
+            text-align: center;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .excel-table th:hover {
+            background: #eaeef2;
+        }
+
+        .excel-table td {
+            height: 32px;
+            background: white;
+            cursor: cell;
+            transition: background-color 0.1s ease;
+        }
+
+        .excel-table td:hover {
+            background: #f6f8fa;
+        }
+
+        .row-header {
+            width: 50px;
+            background: #f6f8fa !important;
+            text-align: center;
+            font-weight: 600;
+            color: #656d76;
+            cursor: pointer;
+        }
+
+        .row-header:hover {
+            background: #eaeef2 !important;
+        }
+
+        .cell-content {
+            padding: 6px 8px;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .cell-selected {
+            background: #dbeafe !important;
+            border: 2px solid #0969da !important;
+            z-index: 5;
+        }
+
+        .cell-editing {
+            background: white !important;
+            border: 2px solid #0969da !important;
+            z-index: 10;
+        }
+
+        .cell-input {
+            width: 100%;
+            height: 28px;
+            border: none;
+            outline: none;
+            background: transparent;
+            font-size: 13px;
+            font-family: inherit;
+            padding: 0 8px;
+        }
+
+        .cell-select {
+            width: 100%;
+            height: 28px;
+            border: none;
+            outline: none;
+            background: transparent;
+            font-size: 13px;
+            font-family: inherit;
+            padding: 0 4px;
+        }
+
+        .context-menu {
+            position: fixed;
+            background: white;
+            border: 1px solid #e1e4e8;
+            border-radius: 8px;
+            box-shadow: 0 8px 24px rgba(140, 149, 159, 0.2);
+            z-index: 1000;
+            min-width: 200px;
+            padding: 8px 0;
+            font-size: 13px;
+        }
+
+        .context-menu-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 16px;
+            cursor: pointer;
+            color: #1f2328;
+            transition: background-color 0.1s ease;
+        }
+
+        .context-menu-item:hover {
+            background: #f6f8fa;
+        }
+
+        .context-menu-item.danger {
+            color: #da3633;
+        }
+
+        .context-menu-item.danger:hover {
+            background: #ffeaea;
+        }
+
+        .context-menu-item i {
+            margin-right: 8px;
+            width: 16px;
+        }
+
+        .context-menu-divider {
+            height: 1px;
+            background: #e1e4e8;
+            margin: 4px 0;
+        }
+
+        .shortcut {
+            margin-left: auto;
+            color: #656d76;
+            font-size: 11px;
+        }
+
+        .features-info {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        }
+
+        .features-info h3 {
+            color: #1f2328;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .feature-item {
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #0969da;
+        }
+
+        .feature-item h4 {
+            color: #1f2328;
+            margin-bottom: 8px;
+            font-size: 1.1rem;
+        }
+
+        .feature-item p {
+            color: #656d76;
+            line-height: 1.6;
+        }
+
+        .drag-handle {
+            position: absolute;
+            bottom: -2px;
+            right: -2px;
+            width: 6px;
+            height: 6px;
+            background: #0969da;
+            cursor: crosshair;
+            border: 1px solid white;
+            display: none;
+            z-index: 10;
+        }
+
+        .cell-selected .drag-handle {
+            display: block;
+        }
+
+        .drag-handle:hover {
+            width: 8px;
+            height: 8px;
+            bottom: -3px;
+            right: -3px;
+        }
+
+        .dragging-selection {
+            user-select: none;
+            cursor: crosshair;
+        }
+
+        .fill-dragging {
+            cursor: crosshair !important;
+        }
+
+        .fill-preview {
+            background: rgba(9, 105, 218, 0.1) !important;
+            border: 1px dashed #0969da !important;
+        }
+
+        .column-resizer {
+            position: absolute;
+            right: 0;
+            top: 0;
+            width: 4px;
+            height: 100%;
+            cursor: col-resize;
+            background: transparent;
+        }
+
+        .column-resizer:hover {
+            background: #0969da;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Excel风格表格编辑器</h1>
+            <p>支持右键菜单、拖拽、复制粘贴的专业表格编辑组件</p>
+        </div>
+
+        <div id="app">
+            <div class="excel-container">
+                <div class="excel-table-wrapper">
+                    <!-- Context Menu -->
+                    <div
+                        v-if="contextMenu.visible"
+                        class="context-menu"
+                        :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }"
+                        @click.stop
+                    >
+                        <div class="context-menu-item" @click="insertRowAbove">
+                            <i>➕</i>
+                            <span>在上方插入行</span>
+                        </div>
+                        <div class="context-menu-item" @click="insertRowBelow">
+                            <i>➕</i>
+                            <span>在下方插入行</span>
+                        </div>
+                        <div class="context-menu-divider"></div>
+                        <div class="context-menu-item" @click="copySelection">
+                            <i>📋</i>
+                            <span>复制</span>
+                            <span class="shortcut">Ctrl+C</span>
+                        </div>
+                        <div class="context-menu-item" @click="pasteSelection">
+                            <i>📄</i>
+                            <span>粘贴</span>
+                            <span class="shortcut">Ctrl+V</span>
+                        </div>
+                        <div class="context-menu-divider"></div>
+                        <div class="context-menu-item danger" @click="deleteSelectedRows">
+                            <i>🗑️</i>
+                            <span>删除行</span>
+                        </div>
+                    </div>
+
+                    <div class="table-container" @click="hideContextMenu">
+                        <table class="excel-table">
+                            <!-- Header Row -->
+                            <thead>
+                                <tr>
+                                    <th class="row-header"></th>
+                                    <th
+                                        v-for="(column, colIndex) in columns"
+                                        :key="column.key"
+                                        :style="{ width: column.width + 'px' }"
+                                        @click="selectColumn(colIndex)"
+                                    >
+                                        {{ column.label }}
+                                        <div class="column-resizer" @mousedown="startColumnResize(colIndex, $event)"></div>
+                                    </th>
+                                </tr>
+                            </thead>
+                            <!-- Data Rows -->
+                            <tbody>
+                                <tr
+                                    v-for="(row, rowIndex) in tableData"
+                                    :key="row.id"
+                                    :class="{ 'row-selected': isRowSelected(rowIndex) }"
+                                >
+                                    <!-- Row Header -->
+                                    <td class="row-header" @click="selectRow(rowIndex)">
+                                        {{ rowIndex + 1 }}
+                                    </td>
+                                    
+                                    <!-- Data Cells -->
+                                    <td
+                                        v-for="(column, colIndex) in columns"
+                                        :key="column.key"
+                                        :class="{
+                                            'cell-selected': isCellSelected(rowIndex, colIndex),
+                                            'cell-editing': editingCell.row === rowIndex && editingCell.col === colIndex
+                                        }"
+                                        :style="{ width: column.width + 'px' }"
+                                        @click="selectCell(rowIndex, colIndex, $event)"
+                                        @dblclick="startEdit(rowIndex, colIndex)"
+                                        @contextmenu="showContextMenu($event, rowIndex, colIndex)"
+                                        @mousedown="startDragSelection(rowIndex, colIndex, $event)"
+                                        @mouseover="updateDragSelection(rowIndex, colIndex); updateFillDrag(rowIndex, colIndex)"
+                                    >
+                                        <!-- Editing Mode -->
+                                        <div v-if="editingCell.row === rowIndex && editingCell.col === colIndex">
+                                            <input
+                                                v-if="column.type === 'text' || column.type === 'number'"
+                                                ref="cellInput"
+                                                v-model="editingValue"
+                                                :type="column.type === 'number' ? 'number' : 'text'"
+                                                class="cell-input"
+                                                @blur="finishEdit"
+                                                @keydown.enter="finishEdit"
+                                                @keydown.esc="cancelEdit"
+                                            />
+                                            <select
+                                                v-else-if="column.type === 'select'"
+                                                ref="cellInput"
+                                                v-model="editingValue"
+                                                class="cell-select"
+                                                @blur="finishEdit"
+                                                @change="finishEdit"
+                                            >
+                                                <option v-for="option in column.options" :key="option.value" :value="option.value">
+                                                    {{ option.label }}
+                                                </option>
+                                            </select>
+                                            <input
+                                                v-else-if="column.type === 'date'"
+                                                ref="cellInput"
+                                                v-model="editingValue"
+                                                type="date"
+                                                class="cell-input"
+                                                @blur="finishEdit"
+                                                @change="finishEdit"
+                                            />
+                                        </div>
+                                        
+                                        <!-- Display Mode -->
+                                        <div v-else class="cell-content">
+                                            <span v-if="column.type === 'boolean'">
+                                                {{ row[column.key] ? '✓' : '' }}
+                                            </span>
+                                            <span v-else-if="column.type === 'select'">
+                                                {{ getSelectLabel(column, row[column.key]) }}
+                                            </span>
+                                            <span v-else-if="column.type === 'number'">
+                                                {{ formatNumber(row[column.key]) }}
+                                            </span>
+                                            <span v-else>
+                                                {{ row[column.key] || '' }}
+                                            </span>
+                                        </div>
+
+                                        <!-- Drag Handle -->
+                                        <div
+                                            v-if="isCellSelected(rowIndex, colIndex)"
+                                            class="drag-handle"
+                                            @mousedown="startFillDrag(rowIndex, colIndex, $event)"
+                                        ></div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="features-info">
+                <h3>功能特性</h3>
+                <div class="features-grid">
+                    <div class="feature-item">
+                        <h4>🖱️ Excel风格操作</h4>
+                        <p>完全模仿Excel的操作体验，包括单元格选择、行列选择、右键菜单等</p>
+                    </div>
+                    <div class="feature-item">
+                        <h4>✏️ 内联编辑</h4>
+                        <p>双击单元格进入编辑模式，支持文本、数字、下拉选择、日期等多种类型</p>
+                    </div>
+                    <div class="feature-item">
+                        <h4>📋 复制粘贴</h4>
+                        <p>支持Ctrl+C/Ctrl+V快捷键，可以与Excel等软件互相复制粘贴数据</p>
+                    </div>
+                    <div class="feature-item">
+                        <h4>🎯 右键菜单</h4>
+                        <p>右键单元格显示上下文菜单，支持插入行、删除行、复制粘贴等操作</p>
+                    </div>
+                    <div class="feature-item">
+                        <h4>📏 列宽调整</h4>
+                        <p>拖拽列边界调整列宽，就像在Excel中一样自然</p>
+                    </div>
+                    <div class="feature-item">
+                        <h4>🎨 美观界面</h4>
+                        <p>现代化的界面设计，清晰的边框和悬停效果，提供专业的使用体验</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp, ref, reactive, computed, nextTick } = Vue;
+
+        createApp({
+            setup() {
+                // 表格数据
+                const tableData = ref([
+                    {
+                        id: 1,
+                        name: '张三',
+                        age: 28,
+                        department: 'IT',
+                        position: '前端工程师',
+                        salary: 15000,
+                        joinDate: '2023-01-15',
+                        active: true
+                    },
+                    {
+                        id: 2,
+                        name: '李四',
+                        age: 32,
+                        department: 'IT',
+                        position: '后端工程师',
+                        salary: 18000,
+                        joinDate: '2022-08-20',
+                        active: true
+                    },
+                    {
+                        id: 3,
+                        name: '王五',
+                        age: 26,
+                        department: 'Design',
+                        position: 'UI设计师',
+                        salary: 12000,
+                        joinDate: '2023-03-10',
+                        active: false
+                    },
+                    {
+                        id: 4,
+                        name: '赵六',
+                        age: 35,
+                        department: 'Marketing',
+                        position: '市场经理',
+                        salary: 20000,
+                        joinDate: '2021-12-05',
+                        active: true
+                    },
+                    {
+                        id: 5,
+                        name: '钱七',
+                        age: 29,
+                        department: 'HR',
+                        position: '人事专员',
+                        salary: 10000,
+                        joinDate: '2023-05-18',
+                        active: true
+                    }
+                ]);
+
+                // 列定义
+                const columns = ref([
+                    {
+                        key: 'name',
+                        label: '姓名',
+                        type: 'text',
+                        width: 120,
+                        editable: true
+                    },
+                    {
+                        key: 'age',
+                        label: '年龄',
+                        type: 'number',
+                        width: 80,
+                        editable: true
+                    },
+                    {
+                        key: 'department',
+                        label: '部门',
+                        type: 'select',
+                        width: 120,
+                        editable: true,
+                        options: [
+                            { label: 'IT部门', value: 'IT' },
+                            { label: '设计部门', value: 'Design' },
+                            { label: '市场部门', value: 'Marketing' },
+                            { label: '人事部门', value: 'HR' },
+                            { label: '财务部门', value: 'Finance' }
+                        ]
+                    },
+                    {
+                        key: 'position',
+                        label: '职位',
+                        type: 'text',
+                        width: 150,
+                        editable: true
+                    },
+                    {
+                        key: 'salary',
+                        label: '薪资',
+                        type: 'number',
+                        width: 100,
+                        editable: true
+                    },
+                    {
+                        key: 'joinDate',
+                        label: '入职日期',
+                        type: 'date',
+                        width: 140,
+                        editable: true
+                    },
+                    {
+                        key: 'active',
+                        label: '在职状态',
+                        type: 'boolean',
+                        width: 100,
+                        editable: true
+                    }
+                ]);
+
+                // 选择状态
+                const selectedCells = reactive(new Set());
+                const selectedRows = reactive(new Set());
+                const selectedColumns = reactive(new Set());
+
+                // 编辑状态
+                const editingCell = reactive({ row: -1, col: -1 });
+                const editingValue = ref('');
+
+                // 右键菜单
+                const contextMenu = reactive({
+                    visible: false,
+                    x: 0,
+                    y: 0,
+                    row: -1,
+                    col: -1
+                });
+
+                // 拖拽选择状态
+                const dragSelection = reactive({
+                    isDragging: false,
+                    startRow: -1,
+                    startCol: -1,
+                    endRow: -1,
+                    endCol: -1,
+                    startX: 0,
+                    startY: 0
+                });
+
+                // 填充拖拽状态
+                const fillDrag = reactive({
+                    isDragging: false,
+                    startRow: -1,
+                    startCol: -1,
+                    currentRow: -1,
+                    currentCol: -1
+                });
+
+                // 工具函数
+                const getCellKey = (row, col) => `${row}-${col}`;
+
+                const isCellSelected = (row, col) => {
+                    return selectedCells.has(getCellKey(row, col));
+                };
+
+                const isRowSelected = (row) => {
+                    return selectedRows.has(row);
+                };
+
+                const selectCell = (row, col, event) => {
+                    if (event.ctrlKey || event.metaKey) {
+                        // 多选模式
+                        const key = getCellKey(row, col);
+                        if (selectedCells.has(key)) {
+                            selectedCells.delete(key);
+                        } else {
+                            selectedCells.add(key);
+                        }
+                    } else if (event.shiftKey && selectedCells.size > 0) {
+                        // 范围选择模式
+                        selectRange(dragSelection.startRow, dragSelection.startCol, row, col);
+                    } else {
+                        // 单选模式
+                        selectedCells.clear();
+                        selectedRows.clear();
+                        selectedColumns.clear();
+                        selectedCells.add(getCellKey(row, col));
+                        
+                        // 记录起始位置用于范围选择
+                        dragSelection.startRow = row;
+                        dragSelection.startCol = col;
+                    }
+                };
+
+                const selectRange = (startRow, startCol, endRow, endCol) => {
+                    selectedCells.clear();
+                    selectedRows.clear();
+                    selectedColumns.clear();
+                    
+                    const minRow = Math.min(startRow, endRow);
+                    const maxRow = Math.max(startRow, endRow);
+                    const minCol = Math.min(startCol, endCol);
+                    const maxCol = Math.max(startCol, endCol);
+                    
+                    for (let r = minRow; r <= maxRow; r++) {
+                        for (let c = minCol; c <= maxCol; c++) {
+                            selectedCells.add(getCellKey(r, c));
+                        }
+                    }
+                };
+
+                const startDragSelection = (row, col, event) => {
+                    if (event.button !== 0) return; // 只处理左键
+                    
+                    dragSelection.isDragging = true;
+                    dragSelection.startRow = row;
+                    dragSelection.startCol = col;
+                    dragSelection.endRow = row;
+                    dragSelection.endCol = col;
+                    dragSelection.startX = event.clientX;
+                    dragSelection.startY = event.clientY;
+                    
+                    // 选择起始单元格
+                    if (!event.ctrlKey && !event.shiftKey) {
+                        selectedCells.clear();
+                        selectedRows.clear();
+                        selectedColumns.clear();
+                    }
+                    selectedCells.add(getCellKey(row, col));
+                    
+                    event.preventDefault();
+                };
+
+                const updateDragSelection = (row, col) => {
+                    if (!dragSelection.isDragging) return;
+                    
+                    dragSelection.endRow = row;
+                    dragSelection.endCol = col;
+                    
+                    // 更新选择范围
+                    selectRange(dragSelection.startRow, dragSelection.startCol, row, col);
+                };
+
+                const endDragSelection = () => {
+                    dragSelection.isDragging = false;
+                };
+
+                const startFillDrag = (row, col, event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    
+                    fillDrag.isDragging = true;
+                    fillDrag.startRow = row;
+                    fillDrag.startCol = col;
+                    fillDrag.currentRow = row;
+                    fillDrag.currentCol = col;
+                    
+                    document.body.style.cursor = 'crosshair';
+                };
+
+                const updateFillDrag = (row, col) => {
+                    if (!fillDrag.isDragging) return;
+                    
+                    fillDrag.currentRow = row;
+                    fillDrag.currentCol = col;
+                    
+                    // 这里可以添加填充预览效果
+                };
+
+                const endFillDrag = () => {
+                    if (!fillDrag.isDragging) return;
+                    
+                    // 执行填充操作
+                    performFillOperation();
+                    
+                    fillDrag.isDragging = false;
+                    document.body.style.cursor = 'default';
+                };
+
+                const performFillOperation = () => {
+                    const startRow = fillDrag.startRow;
+                    const startCol = fillDrag.startCol;
+                    const endRow = fillDrag.currentRow;
+                    const endCol = fillDrag.currentCol;
+                    
+                    if (startRow === endRow && startCol === endCol) return;
+                    
+                    const sourceValue = tableData.value[startRow][columns.value[startCol].key];
+                    const column = columns.value[startCol];
+                    
+                    // 确定填充方向和范围
+                    let fillRows = [];
+                    let fillCols = [];
+                    
+                    if (endRow !== startRow) {
+                        const minRow = Math.min(startRow, endRow);
+                        const maxRow = Math.max(startRow, endRow);
+                        for (let r = minRow; r <= maxRow; r++) {
+                            if (r !== startRow) fillRows.push(r);
+                        }
+                        fillCols = [startCol];
+                    }
+                    
+                    if (endCol !== startCol) {
+                        const minCol = Math.min(startCol, endCol);
+                        const maxCol = Math.max(startCol, endCol);
+                        for (let c = minCol; c <= maxCol; c++) {
+                            if (c !== startCol) fillCols.push(c);
+                        }
+                        if (fillRows.length === 0) fillRows = [startRow];
+                    }
+                    
+                    // 执行填充
+                    fillRows.forEach(row => {
+                        fillCols.forEach(col => {
+                            if (row < tableData.value.length && col < columns.value.length) {
+                                const targetColumn = columns.value[col];
+                                if (targetColumn.editable) {
+                                    let fillValue = sourceValue;
+                                    
+                                    // 智能填充：数字递增
+                                    if (column.type === 'number' && typeof sourceValue === 'number') {
+                                        const distance = Math.abs(row - startRow) + Math.abs(col - startCol);
+                                        fillValue = sourceValue + distance;
+                                    }
+                                    
+                                    tableData.value[row][targetColumn.key] = fillValue;
+                                }
+                            }
+                        });
+                    });
+                };
+
+                const selectRow = (row) => {
+                    selectedCells.clear();
+                    selectedColumns.clear();
+                    selectedRows.clear();
+                    selectedRows.add(row);
+                    
+                    // 选择该行的所有单元格
+                    columns.value.forEach((_, colIndex) => {
+                        selectedCells.add(getCellKey(row, colIndex));
+                    });
+                };
+
+                const selectColumn = (col) => {
+                    selectedCells.clear();
+                    selectedRows.clear();
+                    selectedColumns.clear();
+                    selectedColumns.add(col);
+                    
+                    // 选择该列的所有单元格
+                    tableData.value.forEach((_, rowIndex) => {
+                        selectedCells.add(getCellKey(rowIndex, col));
+                    });
+                };
+
+                const startEdit = (row, col) => {
+                    const column = columns.value[col];
+                    if (!column.editable) return;
+                    
+                    editingCell.row = row;
+                    editingCell.col = col;
+                    editingValue.value = tableData.value[row][column.key];
+                    
+                    nextTick(() => {
+                        const input = document.querySelector('.cell-input, .cell-select');
+                        if (input) {
+                            input.focus();
+                            if (input.select) input.select();
+                        }
+                    });
+                };
+
+                const finishEdit = () => {
+                    if (editingCell.row === -1 || editingCell.col === -1) return;
+                    
+                    const row = tableData.value[editingCell.row];
+                    const column = columns.value[editingCell.col];
+                    
+                    // 更新值
+                    row[column.key] = editingValue.value;
+                    
+                    // 清除编辑状态
+                    editingCell.row = -1;
+                    editingCell.col = -1;
+                    editingValue.value = '';
+                };
+
+                const cancelEdit = () => {
+                    editingCell.row = -1;
+                    editingCell.col = -1;
+                    editingValue.value = '';
+                };
+
+                const showContextMenu = (event, row, col) => {
+                    event.preventDefault();
+                    contextMenu.visible = true;
+                    contextMenu.x = event.clientX;
+                    contextMenu.y = event.clientY;
+                    contextMenu.row = row;
+                    contextMenu.col = col;
+                    
+                    selectCell(row, col, {});
+                };
+
+                const hideContextMenu = () => {
+                    contextMenu.visible = false;
+                };
+
+                const insertRowAbove = () => {
+                    const newRow = {
+                        id: Date.now(),
+                        name: '新员工',
+                        age: 25,
+                        department: 'IT',
+                        position: '待分配',
+                        salary: 8000,
+                        joinDate: new Date().toISOString().split('T')[0],
+                        active: true
+                    };
+                    tableData.value.splice(contextMenu.row, 0, newRow);
+                    hideContextMenu();
+                };
+
+                const insertRowBelow = () => {
+                    const newRow = {
+                        id: Date.now(),
+                        name: '新员工',
+                        age: 25,
+                        department: 'IT',
+                        position: '待分配',
+                        salary: 8000,
+                        joinDate: new Date().toISOString().split('T')[0],
+                        active: true
+                    };
+                    tableData.value.splice(contextMenu.row + 1, 0, newRow);
+                    hideContextMenu();
+                };
+
+                const deleteSelectedRows = () => {
+                    const rowsToDelete = Array.from(selectedRows).sort((a, b) => b - a);
+                    rowsToDelete.forEach(rowIndex => {
+                        tableData.value.splice(rowIndex, 1);
+                    });
+                    selectedRows.clear();
+                    selectedCells.clear();
+                    hideContextMenu();
+                };
+
+                const copySelection = async () => {
+                    const selectedCellsArray = Array.from(selectedCells);
+                    if (selectedCellsArray.length === 0) return;
+                    
+                    // 组织复制数据
+                    const copyData = [];
+                    const cellMap = new Map();
+                    
+                    selectedCellsArray.forEach(cellKey => {
+                        const [row, col] = cellKey.split('-').map(Number);
+                        if (!cellMap.has(row)) {
+                            cellMap.set(row, new Map());
+                        }
+                        
+                        const column = columns.value[col];
+                        const value = tableData.value[row][column.key];
+                        let displayValue = '';
+                        
+                        if (value !== null && value !== undefined) {
+                            if (column.type === 'boolean') {
+                                displayValue = value ? '是' : '否';
+                            } else if (column.type === 'select') {
+                                const option = column.options?.find(opt => opt.value === value);
+                                displayValue = option ? option.label : String(value);
+                            } else {
+                                displayValue = String(value);
+                            }
+                        }
+                        
+                        cellMap.get(row).set(col, displayValue);
+                    });
+                    
+                    // 转换为二维数组
+                    const rows = Array.from(cellMap.keys()).sort((a, b) => a - b);
+                    rows.forEach(row => {
+                        const cols = Array.from(cellMap.get(row).keys()).sort((a, b) => a - b);
+                        const rowData = cols.map(col => cellMap.get(row).get(col) || '');
+                        copyData.push(rowData);
+                    });
+                    
+                    // 复制到剪贴板
+                    try {
+                        const clipboardText = copyData.map(row => row.join('\t')).join('\n');
+                        await navigator.clipboard.writeText(clipboardText);
+                        alert('已复制到剪贴板');
+                    } catch (error) {
+                        alert('复制失败');
+                    }
+                    
+                    hideContextMenu();
+                };
+
+                const pasteSelection = async () => {
+                    try {
+                        const clipboardText = await navigator.clipboard.readText();
+                        const pasteData = clipboardText.split('\n').map(row => row.split('\t'));
+                        
+                        if (pasteData.length === 0) return;
+                        
+                        const startRow = contextMenu.row;
+                        const startCol = contextMenu.col;
+                        
+                        pasteData.forEach((rowData, rowOffset) => {
+                            const targetRowIndex = startRow + rowOffset;
+                            if (targetRowIndex >= tableData.value.length) return;
+                            
+                            const targetRow = tableData.value[targetRowIndex];
+                            
+                            rowData.forEach((cellValue, colOffset) => {
+                                const targetColIndex = startCol + colOffset;
+                                if (targetColIndex >= columns.value.length) return;
+                                
+                                const targetColumn = columns.value[targetColIndex];
+                                if (!targetColumn.editable) return;
+                                
+                                // 根据列类型转换值
+                                let convertedValue = cellValue;
+                                
+                                switch (targetColumn.type) {
+                                    case 'number':
+                                        convertedValue = cellValue === '' ? null : Number(cellValue);
+                                        break;
+                                    case 'boolean':
+                                        convertedValue = cellValue === '是' || cellValue === 'true';
+                                        break;
+                                    case 'select':
+                                        const option = targetColumn.options?.find(opt => 
+                                            opt.label === cellValue || opt.value === cellValue
+                                        );
+                                        if (option) {
+                                            convertedValue = option.value;
+                                        }
+                                        break;
+                                }
+                                
+                                targetRow[targetColumn.key] = convertedValue;
+                            });
+                        });
+                        
+                        alert('粘贴成功');
+                    } catch (error) {
+                        alert('粘贴失败');
+                    }
+                    
+                    hideContextMenu();
+                };
+
+                const startColumnResize = (colIndex, event) => {
+                    event.preventDefault();
+                    const startX = event.clientX;
+                    const startWidth = columns.value[colIndex].width;
+                    
+                    const handleMouseMove = (e) => {
+                        const diff = e.clientX - startX;
+                        const newWidth = Math.max(50, startWidth + diff);
+                        columns.value[colIndex].width = newWidth;
+                    };
+                    
+                    const handleMouseUp = () => {
+                        document.removeEventListener('mousemove', handleMouseMove);
+                        document.removeEventListener('mouseup', handleMouseUp);
+                    };
+                    
+                    document.addEventListener('mousemove', handleMouseMove);
+                    document.addEventListener('mouseup', handleMouseUp);
+                };
+
+                const getSelectLabel = (column, value) => {
+                    const option = column.options?.find(opt => opt.value === value);
+                    return option ? option.label : value;
+                };
+
+                const formatNumber = (value) => {
+                    if (value === null || value === undefined || value === '') return '';
+                    return typeof value === 'number' ? value.toLocaleString() : value;
+                };
+
+                // 键盘快捷键
+                const handleKeyDown = (event) => {
+                    if (event.ctrlKey || event.metaKey) {
+                        if (event.key === 'c' || event.key === 'C') {
+                            event.preventDefault();
+                            copySelection();
+                        } else if (event.key === 'v' || event.key === 'V') {
+                            event.preventDefault();
+                            pasteSelection();
+                        }
+                    }
+                };
+
+                // 鼠标事件处理
+                const handleMouseUp = () => {
+                    endDragSelection();
+                    endFillDrag();
+                };
+
+                const handleMouseMove = (event) => {
+                    if (dragSelection.isDragging || fillDrag.isDragging) {
+                        event.preventDefault();
+                    }
+                };
+
+                // 生命周期
+                document.addEventListener('keydown', handleKeyDown);
+                document.addEventListener('click', hideContextMenu);
+                document.addEventListener('mouseup', handleMouseUp);
+                document.addEventListener('mousemove', handleMouseMove);
+
+                return {
+                    tableData,
+                    columns,
+                    selectedCells,
+                    selectedRows,
+                    selectedColumns,
+                    editingCell,
+                    editingValue,
+                    contextMenu,
+                    dragSelection,
+                    fillDrag,
+                    isCellSelected,
+                    isRowSelected,
+                    selectCell,
+                    selectRow,
+                    selectColumn,
+                    selectRange,
+                    startDragSelection,
+                    updateDragSelection,
+                    endDragSelection,
+                    startFillDrag,
+                    updateFillDrag,
+                    endFillDrag,
+                    startEdit,
+                    finishEdit,
+                    cancelEdit,
+                    showContextMenu,
+                    hideContextMenu,
+                    insertRowAbove,
+                    insertRowBelow,
+                    deleteSelectedRows,
+                    copySelection,
+                    pasteSelection,
+                    startColumnResize,
+                    getSelectLabel,
+                    formatNumber
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
